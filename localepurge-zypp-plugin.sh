@@ -1,0 +1,39 @@
+#!/bin/bash
+
+split() {
+    local IFS=","
+    read -ra RESULT <<< "$1"
+    printf '%s\n' "${RESULT[@]}"
+}
+
+CONFIG_LOCALE_DIRS="/usr/share/help,/usr/share/locale,/usr/share/man,/usr/share/qt5/translations,/usr/share/X11/locale"
+CONFIG_KEEP_LOCALES="en,de"
+
+readarray -t locale_dirs < <(split "${CONFIG_LOCALE_DIRS,,}")
+readarray -t keep_locales < <(split "${CONFIG_KEEP_LOCALES,,}")
+
+if [[ ! " ${keep_locales[@]} " =~ " C " ]]; then
+    keep_locales+=("C")
+fi
+
+for locale_dir in "${locale_dirs[@]}"; do
+    case $locale_dir in
+        "/usr/share/help")
+            searchpattern=$(printf "/%s|" "${keep_locales[@]}" | sed 's/|$//')
+            dirs_to_purge=$(find /usr/share/help -mindepth 1 -maxdepth 1 -type d | grep -vE "$searchpattern")
+            # for dir_to_purge in $dirs_to_purge; do
+            #     find $dir_to_purge -type f -exec rm -f {} +
+            # done
+            ;;
+        "/usr/share/locale")
+            ;;
+        "/usr/share/man")
+            ;;
+        "/usr/share/qt5/translations")
+            ;;
+        "/usr/share/X11/locale")
+            ;;
+        *)
+            ;;
+    esac
+done
