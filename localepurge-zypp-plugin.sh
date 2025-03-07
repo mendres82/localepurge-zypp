@@ -33,7 +33,11 @@ split() {
 }
 
 readarray -t locale_dirs < <(split "${CONFIG_LOCALE_DIRS,,}" | sed 's/x11/X11/g' | while read dir; do [ -d "$dir" ] && echo "$dir"; done)
-readarray -t keep_locales < <(split "${CONFIG_KEEP_LOCALES}" | sed 's/\([^,]*\)/\L\1/g; s/\bc\b/C/g')
+readarray -t keep_locales < <(split "${CONFIG_KEEP_LOCALES}" | sed 's/\([^,]*\)/\L\1/g; s/\bc\b/C/g' | while read locale; do
+    if [[ "$locale" =~ ^[[:alpha:]]{2}$ ]] || [ "$locale" = "C" ]; then
+        echo "$locale"
+    fi
+done)
 
 if [[ ! " ${keep_locales[@]} " =~ " C " ]]; then
     keep_locales+=("C")
