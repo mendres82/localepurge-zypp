@@ -4,6 +4,7 @@
 
 DEBUG="false"
 
+# Get the name of the script without path for logger
 SCRIPTNAME="$(basename "$0")"
 
 # Default configuration values for locale directories and languages to keep
@@ -12,20 +13,23 @@ CONFIG_KEEP_LOCALES="C,en"
 
 CONFIG_FILE="/etc/localepurge-zypp.conf"
 
+# Log a message to the system logger (syslog)
 log() {
     logger -p info -t $SCRIPTNAME --id=$$ "$@"
 }
 
+# Debug logging function that only logs if DEBUG is true
 debug() {
     $DEBUG && log "$@"
 }
 
+# Send a response back to the zypper plugin framework
 respond() {
     debug "<< [$1]"
     echo -ne "$1\n\n\x00"
 }
 
-# Helper function to split comma-separated strings into arrays
+# Split comma-separated strings into arrays
 split() {
     local IFS=","
     read -ra RESULT <<< "$1"
@@ -73,65 +77,40 @@ load_config() {
     
     if [ -f "$config_file" ]; then
         debug "CONFIG_FILE: $config_file"
-        while read -r line || [ -n "$line" ]; do
-        
-            # Parse key-value pairs from config file
+        mapfile -t config_lines < "$config_file"
+        for line in "${config_lines[@]}"; do
             if [[ $line =~ ^[[:space:]]*([^=]+)[[:space:]]*=[[:space:]]*(.*)[[:space:]]*$ ]]; then
                 key="${BASH_REMATCH[1]}"
-                value="${BASH_REMATCH[2]}"
-
-                # Remove surrounding quotes if present
-                value="${value#\"}"
-                value="${value%\"}"
+                value="${BASH_REMATCH[2]//\"/}"  # More efficient quote removal
                 
                 debug "Key: $key, Value: $value"
-                
                 case "$key" in
                     "keep_locales") CONFIG_KEEP_LOCALES="$value" ;;
                 esac
             fi
-        done < "$config_file"
+        done
     else
         debug "CONFIG_FILE: $config_file not found"
     fi
 
     # Process locale directories: convert to lowercase, fix X11 case, verify directory exists
-    readarray -t locale_dirs < <(split "${CONFIG_LOCALE_DIRS,,}" | sed 's/x11/X11/g' | while read dir; do [ -d "$dir" ] && echo "$dir"; done)
+    IFS=',' read -ra locale_dirs <<< "${CONFIG_LOCALE_DIRS,,}"
+    locale_dirs=("${locale_dirs[@]//x11/X11}")
+    locale_dirs=($(for d in "${locale_dirs[@]}"; do [ -d "$d" ] && echo "$d"; done))
 
-    # Process keep_locales: convert to lowercase except 'C', validate format (2 letters or 'C')
-    readarray -t keep_locales < <(split "${CONFIG_KEEP_LOCALES}" | sed 's/\([^,]*\)/\L\1/g; s/\bc\b/C/g' | while read locale; do
-        if [[ "$locale" =~ ^[[:alpha:]]{2}$ ]] || [ "$locale" = "C" ]; then
-            echo "$locale"
-        fi
-    done)
+    IFS=',' read -ra keep_locales <<< "${CONFIG_KEEP_LOCALES,,}"
+    keep_locales=($(printf '%s\n' "${keep_locales[@]}" | sed 's/\bc\b/C/g' | grep -E '^([[:alpha:]]{2}|C)$'))
 
     # Ensure C, en, en_US and system locales are always kept
-    if [[ ! " ${keep_locales[@]} " =~ " C " ]]; then
-        keep_locales+=("C")
-    fi
+    local required_locales=("C" "en" "en_US" "$(get_system_lang)" "$(get_system_locale)")
+    for locale in "${required_locales[@]}"; do
+        [[ ! " ${keep_locales[*]} " =~ " ${locale} " ]] && keep_locales+=("$locale")
+    done
 
-    if [[ ! " ${keep_locales[@]} " =~ " en " ]]; then
-        keep_locales+=("en")
-    fi
-
-    if [[ ! " ${keep_locales[@]} " =~ " en_US " ]]; then
-        keep_locales+=("en_US")
-    fi
-
-    local system_lang=$(get_system_lang)
-    if [[ ! " ${keep_locales[@]} " =~ " $system_lang " ]]; then
-        keep_locales+=("$system_lang")
-    fi
-
-    local system_locale=$(get_system_locale)
-    if [[ ! " ${keep_locales[@]} " =~ " $system_locale " ]]; then
-        keep_locales+=("$system_locale")
-    fi
-
-    debug "system_lang: $system_lang"
-    debug "system_locale: $system_locale"
-    debug "locale_dirs: ${locale_dirs[@]}"
-    debug "keep_locales: ${keep_locales[@]}"
+    debug "system_lang: $(get_system_lang)"
+    debug "system_locale: $(get_system_locale)"
+    debug "locale_dirs: ${locale_dirs[*]}"
+    debug "keep_locales: ${keep_locales[*]}"
 }
 
 # Purge locale directories based on specified patterns
@@ -149,43 +128,26 @@ purge_locales() {
 
     if [[ "$is_file_based" == "true" ]]; then
 
-        # Find and purge individual files
-        local files_to_purge=$(find "$locale_dir" \( -type f -o -type l \) | grep -vE "$search_pattern")
-
-        for file_to_purge in $files_to_purge; do
-            rm -f "$file_to_purge"
-        done
+        # Find and purge files
+        find "$locale_dir" \( -type f -o -type l \) -not -regex ".*${search_pattern}.*" -delete
     else
-    
-        # Find and purge directories
         local dirs_query="find \"$locale_dir\" -mindepth 1 -maxdepth 1 -type d"
         [[ -n "$include_pattern" ]] && dirs_query+=" | grep -E \"$include_pattern\""
         [[ -n "$exclude_pattern" ]] && dirs_query+=" | grep -vE \"$exclude_pattern\""
         [[ -z "$include_pattern" ]] && dirs_query+=" | grep -vE \"$search_pattern\""
         
-        local dirs_to_purge=$(eval "$dirs_query")
-        
-        for dir_to_purge in $dirs_to_purge; do
-            find "$dir_to_purge" \( -type f -o -type l \) -exec rm -f {} +
-        done
+        eval "$dirs_query" | xargs -r -P4 -I{} find {} \( -type f -o -type l \) -delete
     fi
 }
 
 ret=0
 
-# The frames are terminated with NUL.  Use that as the delimeter and get
-# the whole frame in one go.
+# Parsing libzypp hooks and waiting for COMMITEND
 while IFS= read -r -d $'\0' FRAME; do
     echo ">>" $FRAME | debug
 
-    # We only want the command, which is the first word
     read COMMAND <<<$FRAME
 
-    # libzypp will only close the plugin on errors, which may also be logged.
-    # It will also log if the plugin exits unexpectedly.  We don't want
-    # to create a noisy log when using another file system, so we just
-    # wait until COMMITEND to do anything.  We also need to ACK _DISCONNECT
-    # or libzypp will kill the script, which means we can't clean up.
     debug "COMMAND=[$COMMAND]"
     case "$COMMAND" in
     COMMITEND)
