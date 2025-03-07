@@ -179,9 +179,9 @@ ret=0
 
 # Parsing libzypp hooks and waiting for COMMITEND
 while IFS= read -r -d $'\0' FRAME; do
-    echo ">>" "$FRAME" | debug
+    echo ">>" $FRAME | debug
 
-    read -r COMMAND <<<"$FRAME"
+    read COMMAND <<<$FRAME
 
     debug "COMMAND=[$COMMAND]"
     case "$COMMAND" in
