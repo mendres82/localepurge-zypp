@@ -10,9 +10,7 @@ SCRIPTNAME="$(basename "$0")"
 CONFIG_LOCALE_DIRS="/usr/share/help,/usr/share/locale,/usr/share/man,/usr/share/qt5/translations,/usr/share/X11/locale"
 CONFIG_KEEP_LOCALES="C,en"
 
-CONFIG_FILE="./localepurge-zypp.conf"
-
-trap EXIT
+CONFIG_FILE="/etc/localepurge-zypp.conf"
 
 log() {
     logger -p info -t $SCRIPTNAME --id=$$ "$@"
@@ -242,9 +240,6 @@ while IFS= read -r -d $'\0' FRAME; do
         continue
         ;;
     esac
-
-
-    respond "ACK"
 done
 
 debug "Terminating with exit code $ret"
