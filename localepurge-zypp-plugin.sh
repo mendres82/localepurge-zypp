@@ -93,9 +93,9 @@ purge_locales() {
         local files_to_purge=$(find "$locale_dir" \( -type f -o -type l \) | grep -vE "$search_pattern")
         echo "files_to_purge: $files_to_purge"
 
-        # for file_to_purge in $files_to_purge; do
-        #     rm -f "$file_to_purge"
-        # done
+        for file_to_purge in $files_to_purge; do
+            rm -f "$file_to_purge"
+        done
     else
     
         # Find and purge directories
@@ -107,9 +107,9 @@ purge_locales() {
         local dirs_to_purge=$(eval "$dirs_query")
         echo "dirs_to_purge: $dirs_to_purge"
         
-        # for dir_to_purge in $dirs_to_purge; do
-        #     find "$dir_to_purge" \( -type f -o -type l \) -exec rm -f {} +
-        # done
+        for dir_to_purge in $dirs_to_purge; do
+            find "$dir_to_purge" \( -type f -o -type l \) -exec rm -f {} +
+        done
     fi
 }
 
