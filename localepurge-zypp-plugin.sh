@@ -183,8 +183,12 @@ purge_locales() {
 
     if [[ "$is_file_based" == "true" ]]; then
 
-        # Find and purge files
-        find "$locale_dir" \( -type f -o -type l \) -not -regex ".*${search_pattern}.*" -delete
+        # Find and purge individual files
+        local files_to_purge=$(find "$locale_dir" \( -type f -o -type l \) | grep -vE "$search_pattern")
+
+        for file_to_purge in $files_to_purge; do
+            rm -f "$file_to_purge"
+        done
     else
         local dirs_query="find \"$locale_dir\" -mindepth 1 -maxdepth 1 -type d"
         [[ -n "$include_pattern" ]] && dirs_query+=" | grep -E \"$include_pattern\""
