@@ -22,14 +22,14 @@ for locale_dir in "${locale_dirs[@]}"; do
             searchpattern=$(printf "/%s|" "${keep_locales[@]}" | sed 's/|$//')
             dirs_to_purge=$(find $locale_dir -mindepth 1 -maxdepth 1 -type d | grep -vE "$searchpattern")
             # for dir_to_purge in $dirs_to_purge; do
-            #     find $dir_to_purge -type f -exec rm -f {} +
+            #     find $dir_to_purge \( -type f -o -type l \) -exec rm -f {} +
             # done
             ;;
         "/usr/share/locale")
             searchpattern=$(printf "/%s|" "${keep_locales[@]}" | sed 's/|$//')
             dirs_to_purge=$(find $locale_dir -mindepth 1 -maxdepth 1 -type d | grep -vE "$searchpattern")
             # for dir_to_purge in $dirs_to_purge; do
-            #     find $dir_to_purge -type f -exec rm -f {} +
+            #     find $dir_to_purge \( -type f -o -type l \) -exec rm -f {} +
             # done
             ;;
         "/usr/share/man")
@@ -37,20 +37,20 @@ for locale_dir in "${locale_dirs[@]}"; do
             searchpattern="$searchpattern|/man[^/]"
             dirs_to_purge=$(find $locale_dir -mindepth 1 -maxdepth 1 -type d | grep -vE "$searchpattern")
             # for dir_to_purge in $dirs_to_purge; do
-            #     find $dir_to_purge -type f -exec rm -f {} +
+            #     find $dir_to_purge \( -type f -o -type l \) -exec rm -f {} +
             # done
             ;;
         "/usr/share/qt5/translations")
             searchpattern=$(printf "_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
-            # find $locale_dir -type f | grep -vE "$searchpattern" | xargs rm -f
+            # find $locale_dir \( -type f -o -type l \) | grep -vE "$searchpattern" | xargs rm -f
             ;;
         "/usr/share/X11/locale")
             include_pattern="/..([_.]|$)"
             exclude_pattern=$(printf "|/%s([_.]|$)" "${keep_locales[@]}" | sed 's/^|//')
             dirs_to_purge=$(find $locale_dir -mindepth 1 -maxdepth 1 -type d | grep -E "$include_pattern" | grep -vE "$exclude_pattern")
-            for dir_to_purge in $dirs_to_purge; do
-                find $dir_to_purge \( -type f -o -type l \) >> test.txt #-exec rm -f {} +
-            done
+            # for dir_to_purge in $dirs_to_purge; do
+            #     find $dir_to_purge \( -type f -o -type l \) -exec rm -f {} +
+            # done
             ;;
         *)
             ;;
