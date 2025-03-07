@@ -73,6 +73,9 @@ load_config() {
                 value="${value#\"}"
                 value="${value%\"}"
                 
+                # Remove spaces
+                value=$(echo "$value" | sed 's/[[:space:]]*,[[:space:]]*/,/g')
+                
                 debug "Key: $key, Value: $value"
                 
                 case "$key" in
