@@ -121,8 +121,8 @@ for locale_dir in "${locale_dirs[@]}"; do
     case $locale_dir in
         "/usr/share/help"|"/usr/share/locale")
 
-            # searchpattern, e.g.: "/C|/en|/de"
-            searchpattern=$(printf "/%s|" "${keep_locales[@]}" | sed 's/|$//')
+            # searchpattern, e.g.: "/C($)|/en($)|/de($)"
+            searchpattern=$(printf "/%s($)|" "${keep_locales[@]}" | sed 's/|$//')
 
             purge_locales "$locale_dir" "$searchpattern"
             ;;
