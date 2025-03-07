@@ -66,7 +66,9 @@ load_config() {
         
             # Parse key-value pairs from config file
             if [[ $line =~ ^[[:space:]]*([^=]+)[[:space:]]*=[[:space:]]*(.*)[[:space:]]*$ ]]; then
-                key="${BASH_REMATCH[1]}"
+                
+                # Trim whitespace from key
+                key=$(echo "${BASH_REMATCH[1]}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                 value="${BASH_REMATCH[2]}"
 
                 # Remove surrounding quotes if present
@@ -75,6 +77,9 @@ load_config() {
                 
                 # Remove spaces
                 value=$(echo "$value" | sed 's/[[:space:]]*,[[:space:]]*/,/g')
+                
+                # Trim leading and trailing whitespace
+                value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                 
                 debug "Key: $key, Value: $value"
                 
@@ -93,7 +98,9 @@ load_config() {
     locale_dirs=($(for d in "${locale_dirs[@]}"; do [ -d "$d" ] && echo "$d"; done))
 
     IFS=',' read -ra keep_locales <<< "${CONFIG_KEEP_LOCALES,,}"
-    keep_locales=($(printf '%s\n' "${keep_locales[@]}" | sed 's/\bc\b/C/g' | grep -E '^([[:alpha:]]{2}|C)$'))
+    keep_locales=($(printf '%s\n' "${keep_locales[@]}" | sed 's/\bc\b/C/g' | \
+        sed 's/_\([a-z][a-z]\)/_\U\1/g' | \
+        grep -E '^(C|[a-z]{2}(_[A-Z]{2})?(@[a-z0-9]+)?(\.[a-zA-Z0-9-]+)?)$'))
 
     # Ensure C, en, en_US and system locales are always kept
     local required_locales=("C" "en" "en_US" "$(get_system_lang)" "$(get_system_locale)")
