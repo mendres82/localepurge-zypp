@@ -15,7 +15,7 @@ CONFIG_FILE="/etc/localepurge-zypp.conf"
 
 # Log a message to the system logger (syslog)
 log() {
-    logger -p info -t $SCRIPTNAME --id=$$ "$@"
+    logger -p info -t "$SCRIPTNAME" --id=$$ "$@"
 }
 
 # Debug logging function that only logs if DEBUG is true
@@ -27,13 +27,6 @@ debug() {
 respond() {
     debug "<< [$1]"
     echo -ne "$1\n\n\x00"
-}
-
-# Split comma-separated strings into arrays
-split() {
-    local IFS=","
-    read -ra RESULT <<< "$1"
-    printf '%s\n' "${RESULT[@]}"
 }
 
 # Check if script is running with root privileges
@@ -96,7 +89,6 @@ load_config() {
             esac
         done < "$config_file"
     else
-    
         debug "CONFIG_FILE: $config_file not found"
     fi
 
@@ -110,6 +102,7 @@ load_config() {
 
     # Ensure C, en, en_US and system locales are always kept
     local required_locales=("C" "en" "en_US" "$(get_system_lang)" "$(get_system_locale)")
+
     for locale in "${required_locales[@]}"; do
         [[ ! " ${keep_locales[*]} " =~ " ${locale} " ]] && keep_locales+=("$locale")
     done
@@ -151,9 +144,9 @@ ret=0
 
 # Parsing libzypp hooks and waiting for COMMITEND
 while IFS= read -r -d $'\0' FRAME; do
-    echo ">>" $FRAME | debug
+    echo ">>" "$FRAME" | debug
 
-    read COMMAND <<<$FRAME
+    read -r COMMAND <<<"$FRAME"
 
     debug "COMMAND=[$COMMAND]"
     case "$COMMAND" in
