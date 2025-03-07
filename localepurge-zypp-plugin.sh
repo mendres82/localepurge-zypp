@@ -41,10 +41,13 @@ check_runas_root() {
 
 # Get full system locale (e.g., "en_US.UTF-8")
 get_system_locale() {
-    local system_locale=$(locale | grep LANG | cut -d'=' -f2 | head -n1 | cut -d'.' -f1)
     
-    # Default to "en_US.UTF-8" if we couldn't determine the system locale
-    if [ -z "$system_locale" ]; then
+    # Check LC_ALL first, then LC_CTYPE, then LANG
+    # Strip encoding (anything after .) and quotes if present
+    local system_locale=$(locale | grep -E '^(LC_ALL|LC_CTYPE|LANG)=' | head -n1 | cut -d'=' -f2 | sed 's/["]//g' | cut -d'.' -f1)
+    
+    # Default to "en_US" if we couldn't determine the system locale
+    if [ -z "$system_locale" ] || [ "$system_locale" = "C" ] || [ "$system_locale" = "POSIX" ]; then
         system_locale="en_US"
     fi
     
