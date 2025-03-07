@@ -10,7 +10,7 @@ CONFIG_LOCALE_DIRS="/usr/share/help,/usr/share/locale,/usr/share/man,/usr/share/
 CONFIG_KEEP_LOCALES="C,en,de"
 
 readarray -t locale_dirs < <(split "${CONFIG_LOCALE_DIRS,,}")
-readarray -t keep_locales < <(split "${CONFIG_KEEP_LOCALES,,}")
+readarray -t keep_locales < <(split "${CONFIG_KEEP_LOCALES}" | sed 's/\([^,]*\)/\L\1/g; s/\bc\b/C/g')
 
 if [[ ! " ${keep_locales[@]} " =~ " C " ]]; then
     keep_locales+=("C")
