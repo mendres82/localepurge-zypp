@@ -1,6 +1,17 @@
 #!/bin/bash
 #
-# This plugin purges localefiles after an installation or update.
+# Localepurge Zypper Plugin 0.2
+# Author : mendres
+# Release date : 07 March 2025
+#
+# This script is a plugin for the zypper package manager that removes unnecessary locale files during package installation to save disk space.
+#
+# Features:
+# - Automatically removes unnecessary locale files during package installation
+# - Respects your system's configured locales
+# - Configurable through simple configuration file
+# - Minimal performance impact during package operations
+# - Compatible with zypper and YaST
 
 DEBUG="false"
 
@@ -78,7 +89,7 @@ load_config() {
                 # Remove spaces
                 value=$(echo "$value" | sed 's/[[:space:]]*,[[:space:]]*/,/g')
                 
-                # Trim leading and trailing whitespace
+                # Trim leading and trailing whitespaces
                 value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                 
                 debug "Key: $key, Value: $value"
