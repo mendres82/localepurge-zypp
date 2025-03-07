@@ -46,8 +46,8 @@ check_runas_root() {
 # Get system locale (e.g., "en_US")
 get_system_locale() {
     
-    # Check LC_ALL first, then LC_CTYPE, then LANG
-    local system_locale=$(locale | grep -E '^(LC_ALL|LC_CTYPE|LANG)=' | head -n1 | cut -d'=' -f2 | sed 's/["]//g' | cut -d'.' -f1)
+    # Get locale from LANG environment variable
+    local system_locale=$(locale | grep '^LANG=' | cut -d'=' -f2 | sed 's/["]//g' | cut -d'.' -f1)
     
     # Default to "en_US" if we couldn't determine the system locale
     if [ -z "$system_locale" ] || [ "$system_locale" = "C" ] || [ "$system_locale" = "POSIX" ]; then
