@@ -22,7 +22,7 @@ get_system_locale() {
         system_locale="en_US.UTF-8"
     fi
     
-    echo "system_locale: $system_locale"
+    echo "$system_locale"
 }
 
 # Get system language code (e.g., "en")
@@ -35,7 +35,7 @@ get_system_lang() {
         system_lang="en"
     fi
     
-    echo "system_lang: $system_lang"
+    echo "$system_lang"
 }
 
 # Helper function to split comma-separated strings into arrays
@@ -97,6 +97,8 @@ load_config() {
         keep_locales+=("$system_lang")
     fi
 
+    echo "system_locale: $(get_system_locale)"
+    echo "system_lang: $system_lang"
     echo "locale_dirs: ${locale_dirs[@]}"
     echo "keep_locales: ${keep_locales[@]}"
 }
@@ -142,6 +144,8 @@ purge_locales() {
 
 check_runas_root
 load_config "$CONFIG_FILE"
+
+exit
 
 # Process each locale directory
 for locale_dir in "${locale_dirs[@]}"; do
