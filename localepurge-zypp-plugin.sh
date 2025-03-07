@@ -7,7 +7,7 @@ split() {
 }
 
 CONFIG_LOCALE_DIRS="/usr/share/help,/usr/share/locale,/usr/share/man,/usr/share/qt5/translations,/usr/share/X11/locale"
-CONFIG_KEEP_LOCALES="en,de"
+CONFIG_KEEP_LOCALES="C,en,de"
 
 readarray -t locale_dirs < <(split "${CONFIG_LOCALE_DIRS,,}")
 readarray -t keep_locales < <(split "${CONFIG_KEEP_LOCALES,,}")
@@ -41,6 +41,8 @@ for locale_dir in "${locale_dirs[@]}"; do
             # done
             ;;
         "/usr/share/qt5/translations")
+            searchpattern=$(printf "_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
+            # find $locale_dir -type f | grep -vE "$searchpattern" | xargs rm -f
             ;;
         "/usr/share/X11/locale")
             ;;
