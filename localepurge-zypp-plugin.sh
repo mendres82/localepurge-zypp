@@ -6,6 +6,24 @@ CONFIG_KEEP_LOCALES="C,en"
 
 CONFIG_FILE="./localepurge-zypp.conf"
 
+# Check if script is running with root privileges
+check_runas_root() {
+    if [ "$EUID" -ne 0 ]; then
+        echo -e "${RED}Error: This script must be run as root!${NC}"
+        echo
+        exit 1
+    fi
+}
+
+# Helper function to split comma-separated strings into arrays
+split() {
+    local IFS=","
+    read -ra RESULT <<< "$1"
+    printf '%s\n' "${RESULT[@]}"
+}
+
+check_runas_root
+
 # Load configuration from file if it exists
 if [ -f "$CONFIG_FILE" ]; then
     echo "CONFIG_FILE: $CONFIG_FILE"
@@ -31,13 +49,6 @@ if [ -f "$CONFIG_FILE" ]; then
 else
     echo "CONFIG_FILE: $CONFIG_FILE not found"
 fi
-
-# Helper function to split comma-separated strings into arrays
-split() {
-    local IFS=","
-    read -ra RESULT <<< "$1"
-    printf '%s\n' "${RESULT[@]}"
-}
 
 # Process locale directories: convert to lowercase, fix X11 case, verify directory exists
 readarray -t locale_dirs < <(split "${CONFIG_LOCALE_DIRS,,}" | sed 's/x11/X11/g' | while read dir; do [ -d "$dir" ] && echo "$dir"; done)
