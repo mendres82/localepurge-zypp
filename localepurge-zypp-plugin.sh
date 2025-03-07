@@ -9,7 +9,7 @@ split() {
 CONFIG_LOCALE_DIRS="/usr/share/help,/usr/share/locale,/usr/share/man,/usr/share/qt5/translations,/usr/share/X11/locale"
 CONFIG_KEEP_LOCALES="C,en,de"
 
-readarray -t locale_dirs < <(split "${CONFIG_LOCALE_DIRS,,}")
+readarray -t locale_dirs < <(split "${CONFIG_LOCALE_DIRS,,}" | sed 's/x11/X11/g')
 readarray -t keep_locales < <(split "${CONFIG_KEEP_LOCALES}" | sed 's/\([^,]*\)/\L\1/g; s/\bc\b/C/g')
 
 if [[ ! " ${keep_locales[@]} " =~ " C " ]]; then
@@ -45,6 +45,12 @@ for locale_dir in "${locale_dirs[@]}"; do
             # find $locale_dir -type f | grep -vE "$searchpattern" | xargs rm -f
             ;;
         "/usr/share/X11/locale")
+            include_pattern="/..([_.]|$)"
+            exclude_pattern=$(printf "|/%s([_.]|$)" "${keep_locales[@]}" | sed 's/^|//')
+            dirs_to_purge=$(find $locale_dir -mindepth 1 -maxdepth 1 -type d | grep -E "$include_pattern" | grep -vE "$exclude_pattern")
+            for dir_to_purge in $dirs_to_purge; do
+                find $dir_to_purge \( -type f -o -type l \) >> test.txt #-exec rm -f {} +
+            done
             ;;
         *)
             ;;
