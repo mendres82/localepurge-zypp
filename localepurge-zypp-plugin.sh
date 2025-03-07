@@ -33,6 +33,12 @@ for locale_dir in "${locale_dirs[@]}"; do
             # done
             ;;
         "/usr/share/man")
+            searchpattern=$(printf "/%s|" "${keep_locales[@]}" | sed 's/|$//')
+            searchpattern="$searchpattern|/man[^/]"
+            dirs_to_purge=$(find $locale_dir -mindepth 1 -maxdepth 1 -type d | grep -vE "$searchpattern")
+            # for dir_to_purge in $dirs_to_purge; do
+            #     find $dir_to_purge -type f -exec rm -f {} +
+            # done
             ;;
         "/usr/share/qt5/translations")
             ;;
