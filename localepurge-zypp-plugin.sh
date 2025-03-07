@@ -75,20 +75,28 @@ load_config() {
     local config_file="$1"
     
     if [ -f "$config_file" ]; then
+
         debug "CONFIG_FILE: $config_file"
-        mapfile -t config_lines < "$config_file"
-        for line in "${config_lines[@]}"; do
-            if [[ $line =~ ^[[:space:]]*([^=]+)[[:space:]]*=[[:space:]]*(.*)[[:space:]]*$ ]]; then
-                key="${BASH_REMATCH[1]}"
-                value="${BASH_REMATCH[2]//\"/}"  # More efficient quote removal
-                
-                debug "Key: $key, Value: $value"
-                case "$key" in
-                    "keep_locales") CONFIG_KEEP_LOCALES="$value" ;;
-                esac
-            fi
-        done
+
+        while IFS='=' read -r key value; do
+
+            # Skip empty lines and comments
+            [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+            
+            # Trim whitespace and quotes from key and value
+            key="${key%%[[:space:]]}"
+            value="${value##[[:space:]]}"
+            value="${value%%[[:space:]]}"
+            value="${value//\"/}"
+            
+            debug "Key: $key, Value: $value"
+
+            case "$key" in
+                "keep_locales") CONFIG_KEEP_LOCALES="$value" ;;
+            esac
+        done < "$config_file"
     else
+    
         debug "CONFIG_FILE: $config_file not found"
     fi
 
