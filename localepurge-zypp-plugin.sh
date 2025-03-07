@@ -148,7 +148,8 @@ process_locale_dirs() {
             "/usr/share/qt5/translations")
 
                 # searchpattern, e.g.: "_C\.|_en\.|_de\."
-                searchpattern=$(printf "_%s\.|_%s\.|_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
+                searchpattern=$(printf "_%s\.|" "${keep_locales[@]}")
+                searchpattern="${searchpattern}_\."
 
                 purge_locales "$locale_dir" "$searchpattern" "" "" "true"
                 ;;
