@@ -1,10 +1,38 @@
 #!/bin/bash
+#
+# This plugin purges localefiles after an installation or update.
+
+DEBUG="false"
+
+SCRIPTNAME="$(basename "$0")"
 
 # Default configuration values for locale directories and languages to keep
 CONFIG_LOCALE_DIRS="/usr/share/help,/usr/share/locale,/usr/share/man,/usr/share/qt5/translations,/usr/share/X11/locale"
 CONFIG_KEEP_LOCALES="C,en"
 
 CONFIG_FILE="./localepurge-zypp.conf"
+
+trap EXIT
+
+log() {
+    logger -p info -t $SCRIPTNAME --id=$$ "$@"
+}
+
+debug() {
+    $DEBUG && log "$@"
+}
+
+respond() {
+    debug "<< [$1]"
+    echo -ne "$1\n\n\x00"
+}
+
+# Helper function to split comma-separated strings into arrays
+split() {
+    local IFS=","
+    read -ra RESULT <<< "$1"
+    printf '%s\n' "${RESULT[@]}"
+}
 
 # Check if script is running with root privileges
 check_runas_root() {
@@ -38,19 +66,12 @@ get_system_lang() {
     echo "$system_lang"
 }
 
-# Helper function to split comma-separated strings into arrays
-split() {
-    local IFS=","
-    read -ra RESULT <<< "$1"
-    printf '%s\n' "${RESULT[@]}"
-}
-
 # Load configuration from file and process settings
 load_config() {
     local config_file="$1"
     
     if [ -f "$config_file" ]; then
-        echo "CONFIG_FILE: $config_file"
+        debug "CONFIG_FILE: $config_file"
         while read -r line || [ -n "$line" ]; do
         
             # Parse key-value pairs from config file
@@ -62,7 +83,7 @@ load_config() {
                 value="${value#\"}"
                 value="${value%\"}"
                 
-                echo "Key: $key, Value: $value"
+                debug "Key: $key, Value: $value"
                 
                 case "$key" in
                     "keep_locales") CONFIG_KEEP_LOCALES="$value" ;;
@@ -70,7 +91,7 @@ load_config() {
             fi
         done < "$config_file"
     else
-        echo "CONFIG_FILE: $config_file not found"
+        debug "CONFIG_FILE: $config_file not found"
     fi
 
     # Process locale directories: convert to lowercase, fix X11 case, verify directory exists
@@ -106,10 +127,10 @@ load_config() {
         keep_locales+=("$system_locale")
     fi
 
-    echo "system_lang: $system_lang"
-    echo "system_locale: $system_locale"
-    echo "locale_dirs: ${locale_dirs[@]}"
-    echo "keep_locales: ${keep_locales[@]}"
+    debug "system_lang: $system_lang"
+    debug "system_locale: $system_locale"
+    debug "locale_dirs: ${locale_dirs[@]}"
+    debug "keep_locales: ${keep_locales[@]}"
 }
 
 # Purge locale directories based on specified patterns
@@ -120,16 +141,15 @@ purge_locales() {
     local exclude_pattern="$4"
     local is_file_based="${5:-false}"
 
-    echo "locale_dir: $locale_dir"
-    echo "searchpattern: $search_pattern"
-    [[ -n "$include_pattern" ]] && echo "include_pattern: $include_pattern"
-    [[ -n "$exclude_pattern" ]] && echo "exclude_pattern: $exclude_pattern"
+    debug "locale_dir: $locale_dir"
+    debug "searchpattern: $search_pattern"
+    [[ -n "$include_pattern" ]] && debug "include_pattern: $include_pattern"
+    [[ -n "$exclude_pattern" ]] && debug "exclude_pattern: $exclude_pattern"
 
     if [[ "$is_file_based" == "true" ]]; then
 
         # Find and purge individual files
         local files_to_purge=$(find "$locale_dir" \( -type f -o -type l \) | grep -vE "$search_pattern")
-        echo "files_to_purge: $files_to_purge"
 
         for file_to_purge in $files_to_purge; do
             rm -f "$file_to_purge"
@@ -143,7 +163,6 @@ purge_locales() {
         [[ -z "$include_pattern" ]] && dirs_query+=" | grep -vE \"$search_pattern\""
         
         local dirs_to_purge=$(eval "$dirs_query")
-        echo "dirs_to_purge: $dirs_to_purge"
         
         for dir_to_purge in $dirs_to_purge; do
             find "$dir_to_purge" \( -type f -o -type l \) -exec rm -f {} +
@@ -151,45 +170,82 @@ purge_locales() {
     fi
 }
 
-check_runas_root
-load_config "$CONFIG_FILE"
+ret=0
 
-# Process each locale directory
-for locale_dir in "${locale_dirs[@]}"; do
-    case $locale_dir in
-        "/usr/share/help"|"/usr/share/locale")
+# The frames are terminated with NUL.  Use that as the delimeter and get
+# the whole frame in one go.
+while IFS= read -r -d $'\0' FRAME; do
+    echo ">>" $FRAME | debug
 
-            # searchpattern, e.g.: "/C($)|/en($)|/de($)"
-            searchpattern=$(printf "/%s($)|" "${keep_locales[@]}" | sed 's/|$//')
+    # We only want the command, which is the first word
+    read COMMAND <<<$FRAME
 
-            purge_locales "$locale_dir" "$searchpattern"
-            ;;
-        "/usr/share/man")
+    # libzypp will only close the plugin on errors, which may also be logged.
+    # It will also log if the plugin exits unexpectedly.  We don't want
+    # to create a noisy log when using another file system, so we just
+    # wait until COMMITEND to do anything.  We also need to ACK _DISCONNECT
+    # or libzypp will kill the script, which means we can't clean up.
+    debug "COMMAND=[$COMMAND]"
+    case "$COMMAND" in
+    COMMITEND)
+        respond "ACK"
 
-            # searchpattern, e.g.: "/C|/en|/de|/man[^/]" 
-            searchpattern=$(printf "/%s|" "${keep_locales[@]}" | sed 's/|$//')
-            searchpattern="$searchpattern|/man[^/]"
+        check_runas_root
+        load_config "$CONFIG_FILE"
 
-            purge_locales "$locale_dir" "$searchpattern"
-            ;;
-        "/usr/share/qt5/translations")
+        # Process each locale directory
+        for locale_dir in "${locale_dirs[@]}"; do
+            case $locale_dir in
+                "/usr/share/help"|"/usr/share/locale")
 
-            # searchpattern, e.g.: "_C\.|_en\.|_de\."
-            searchpattern=$(printf "_%s\.|_%s\.|_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
+                    # searchpattern, e.g.: "/C($)|/en($)|/de($)"
+                    searchpattern=$(printf "/%s($)|" "${keep_locales[@]}" | sed 's/|$//')
 
-            purge_locales "$locale_dir" "$searchpattern" "" "" "true"
-            ;;
-        "/usr/share/X11/locale")
+                    purge_locales "$locale_dir" "$searchpattern"
+                    ;;
+                "/usr/share/man")
 
-            # include_pattern, e.g.: "/..([_.]|$)"
-            include_pattern="/..([_.]|$)"
+                    # searchpattern, e.g.: "/C|/en|/de|/man[^/]" 
+                    searchpattern=$(printf "/%s|" "${keep_locales[@]}" | sed 's/|$//')
+                    searchpattern="$searchpattern|/man[^/]"
 
-            # exclude_pattern, e.g.: "/C([_.]|$)|/en([_.]|$)|/de([_.]|$)"
-            exclude_pattern=$(printf "|/%s([_.]|$)" "${keep_locales[@]}" | sed 's/^|//')
+                    purge_locales "$locale_dir" "$searchpattern"
+                    ;;
+                "/usr/share/qt5/translations")
 
-            purge_locales "$locale_dir" "" "$include_pattern" "$exclude_pattern"
-            ;;
-        *)
-            ;;
+                    # searchpattern, e.g.: "_C\.|_en\.|_de\."
+                    searchpattern=$(printf "_%s\.|_%s\.|_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
+
+                    purge_locales "$locale_dir" "$searchpattern" "" "" "true"
+                    ;;
+                "/usr/share/X11/locale")
+
+                    # include_pattern, e.g.: "/..([_.]|$)"
+                    include_pattern="/..([_.]|$)"
+
+                    # exclude_pattern, e.g.: "/C([_.]|$)|/en([_.]|$)|/de([_.]|$)"
+                    exclude_pattern=$(printf "|/%s([_.]|$)" "${keep_locales[@]}" | sed 's/^|//')
+
+                    purge_locales "$locale_dir" "" "$include_pattern" "$exclude_pattern"
+                    ;;
+                *)
+                    ;;
+            esac
+        done
+        ;;
+    _DISCONNECT)
+        respond "ACK"
+        break
+        ;;
+    *)
+        respond "_ENOMETHOD"
+        continue
+        ;;
     esac
+
+
+    respond "ACK"
 done
+
+debug "Terminating with exit code $ret"
+exit $ret
