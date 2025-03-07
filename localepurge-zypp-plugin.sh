@@ -29,13 +29,6 @@ respond() {
     echo -ne "$1\n\n\x00"
 }
 
-# Check if script is running with root privileges
-check_runas_root() {
-    if [ "$EUID" -ne 0 ]; then
-        exit 1
-    fi
-}
-
 # Get system locale (e.g., "en_US")
 get_system_locale() {
     
@@ -150,12 +143,14 @@ while IFS= read -r -d $'\0' FRAME; do
 
     debug "COMMAND=[$COMMAND]"
     case "$COMMAND" in
-    COMMITEND)
-        respond "ACK"
-
-        check_runas_root
+    PLUGINBEGIN)
         load_config "$CONFIG_FILE"
 
+        respond "ACK"
+        continue
+        ;;
+    COMMITEND)
+        
         # Process each locale directory
         for locale_dir in "${locale_dirs[@]}"; do
             case $locale_dir in
@@ -195,6 +190,8 @@ while IFS= read -r -d $'\0' FRAME; do
                     ;;
             esac
         done
+
+        respond "ACK"
         ;;
     _DISCONNECT)
         respond "ACK"
