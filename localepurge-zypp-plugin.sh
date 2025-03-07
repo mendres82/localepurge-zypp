@@ -120,21 +120,35 @@ load_config "$CONFIG_FILE"
 for locale_dir in "${locale_dirs[@]}"; do
     case $locale_dir in
         "/usr/share/help"|"/usr/share/locale")
+
+            # searchpattern, e.g.: "/C|/en|/de"
             searchpattern=$(printf "/%s|" "${keep_locales[@]}" | sed 's/|$//')
+
             purge_locales "$locale_dir" "$searchpattern"
             ;;
         "/usr/share/man")
+
+            # searchpattern, e.g.: "/C|/en|/de|/man[^/]" 
             searchpattern=$(printf "/%s|" "${keep_locales[@]}" | sed 's/|$//')
             searchpattern="$searchpattern|/man[^/]"
+
             purge_locales "$locale_dir" "$searchpattern"
             ;;
         "/usr/share/qt5/translations")
+
+            # searchpattern, e.g.: "_C\.|_en\.|_de\."
             searchpattern=$(printf "_%s\.|_%s\.|_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
+
             purge_locales "$locale_dir" "$searchpattern" "" "" "true"
             ;;
         "/usr/share/X11/locale")
+
+            # include_pattern, e.g.: "/..([_.]|$)"
             include_pattern="/..([_.]|$)"
+
+            # exclude_pattern, e.g.: "/C([_.]|$)|/en([_.]|$)|/de([_.]|$)"
             exclude_pattern=$(printf "|/%s([_.]|$)" "${keep_locales[@]}" | sed 's/^|//')
+
             purge_locales "$locale_dir" "" "$include_pattern" "$exclude_pattern"
             ;;
         *)
