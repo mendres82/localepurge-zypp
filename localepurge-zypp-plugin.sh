@@ -9,10 +9,33 @@ CONFIG_FILE="./localepurge-zypp.conf"
 # Check if script is running with root privileges
 check_runas_root() {
     if [ "$EUID" -ne 0 ]; then
-        echo -e "${RED}Error: This script must be run as root!${NC}"
-        echo
         exit 1
     fi
+}
+
+# Get full system locale (e.g., "en_US.UTF-8")
+get_system_locale() {
+    local system_locale=$(locale | grep LANG | cut -d'=' -f2 | head -n1)
+    
+    # Default to "en_US.UTF-8" if we couldn't determine the system locale
+    if [ -z "$system_locale" ]; then
+        system_locale="en_US.UTF-8"
+    fi
+    
+    echo "system_locale: $system_locale"
+}
+
+# Get system language code (e.g., "en")
+get_system_lang() {
+    local system_locale=$(get_system_locale)
+    local system_lang=$(echo "$system_locale" | cut -d'_' -f1)
+    
+    # Default to 'en' if we couldn't determine the system language
+    if [ -z "$system_lang" ]; then
+        system_lang="en"
+    fi
+    
+    echo "system_lang: $system_lang"
 }
 
 # Helper function to split comma-separated strings into arrays
@@ -42,7 +65,6 @@ load_config() {
                 echo "Key: $key, Value: $value"
                 
                 case "$key" in
-                    "locale_dirs") CONFIG_LOCALE_DIRS="$value" ;;
                     "keep_locales") CONFIG_KEEP_LOCALES="$value" ;;
                 esac
             fi
@@ -61,13 +83,18 @@ load_config() {
         fi
     done)
 
-    # Ensure C and en locales are always kept
+    # Ensure C, en and system locales are always kept
     if [[ ! " ${keep_locales[@]} " =~ " C " ]]; then
         keep_locales+=("C")
     fi
 
     if [[ ! " ${keep_locales[@]} " =~ " en " ]]; then
         keep_locales+=("en")
+    fi
+
+    local system_lang=$(get_system_lang)
+    if [[ ! " ${keep_locales[@]} " =~ " $system_lang " ]]; then
+        keep_locales+=("$system_lang")
     fi
 
     echo "locale_dirs: ${locale_dirs[@]}"
@@ -93,9 +120,9 @@ purge_locales() {
         local files_to_purge=$(find "$locale_dir" \( -type f -o -type l \) | grep -vE "$search_pattern")
         echo "files_to_purge: $files_to_purge"
 
-        for file_to_purge in $files_to_purge; do
-            rm -f "$file_to_purge"
-        done
+        # for file_to_purge in $files_to_purge; do
+        #     rm -f "$file_to_purge"
+        # done
     else
     
         # Find and purge directories
@@ -107,9 +134,9 @@ purge_locales() {
         local dirs_to_purge=$(eval "$dirs_query")
         echo "dirs_to_purge: $dirs_to_purge"
         
-        for dir_to_purge in $dirs_to_purge; do
-            find "$dir_to_purge" \( -type f -o -type l \) -exec rm -f {} +
-        done
+        # for dir_to_purge in $dirs_to_purge; do
+        #     find "$dir_to_purge" \( -type f -o -type l \) -exec rm -f {} +
+        # done
     fi
 }
 
