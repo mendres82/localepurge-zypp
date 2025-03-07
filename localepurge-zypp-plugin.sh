@@ -43,11 +43,10 @@ check_runas_root() {
     fi
 }
 
-# Get full system locale (e.g., "en_US.UTF-8")
+# Get system locale (e.g., "en_US")
 get_system_locale() {
     
     # Check LC_ALL first, then LC_CTYPE, then LANG
-    # Strip encoding (anything after .) and quotes if present
     local system_locale=$(locale | grep -E '^(LC_ALL|LC_CTYPE|LANG)=' | head -n1 | cut -d'=' -f2 | sed 's/["]//g' | cut -d'.' -f1)
     
     # Default to "en_US" if we couldn't determine the system locale
