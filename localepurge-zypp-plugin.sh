@@ -129,7 +129,7 @@ for locale_dir in "${locale_dirs[@]}"; do
             purge_locales "$locale_dir" "$searchpattern"
             ;;
         "/usr/share/qt5/translations")
-            searchpattern=$(printf "_%s\.|/_%s\.|/_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
+            searchpattern=$(printf "_%s\.|_%s\.|_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
             purge_locales "$locale_dir" "$searchpattern" "" "" "true"
             ;;
         "/usr/share/X11/locale")
