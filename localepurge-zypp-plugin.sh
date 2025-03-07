@@ -15,11 +15,11 @@ check_runas_root() {
 
 # Get full system locale (e.g., "en_US.UTF-8")
 get_system_locale() {
-    local system_locale=$(locale | grep LANG | cut -d'=' -f2 | head -n1)
+    local system_locale=$(locale | grep LANG | cut -d'=' -f2 | head -n1 | cut -d'.' -f1)
     
     # Default to "en_US.UTF-8" if we couldn't determine the system locale
     if [ -z "$system_locale" ]; then
-        system_locale="en_US.UTF-8"
+        system_locale="en_US"
     fi
     
     echo "$system_locale"
@@ -83,7 +83,7 @@ load_config() {
         fi
     done)
 
-    # Ensure C, en and system locales are always kept
+    # Ensure C, en, en_US and system locales are always kept
     if [[ ! " ${keep_locales[@]} " =~ " C " ]]; then
         keep_locales+=("C")
     fi
@@ -92,13 +92,22 @@ load_config() {
         keep_locales+=("en")
     fi
 
+    if [[ ! " ${keep_locales[@]} " =~ " en_US " ]]; then
+        keep_locales+=("en_US")
+    fi
+
     local system_lang=$(get_system_lang)
     if [[ ! " ${keep_locales[@]} " =~ " $system_lang " ]]; then
         keep_locales+=("$system_lang")
     fi
 
-    echo "system_locale: $(get_system_locale)"
+    local system_locale=$(get_system_locale)
+    if [[ ! " ${keep_locales[@]} " =~ " $system_locale " ]]; then
+        keep_locales+=("$system_locale")
+    fi
+
     echo "system_lang: $system_lang"
+    echo "system_locale: $system_locale"
     echo "locale_dirs: ${locale_dirs[@]}"
     echo "keep_locales: ${keep_locales[@]}"
 }
@@ -122,9 +131,9 @@ purge_locales() {
         local files_to_purge=$(find "$locale_dir" \( -type f -o -type l \) | grep -vE "$search_pattern")
         echo "files_to_purge: $files_to_purge"
 
-        # for file_to_purge in $files_to_purge; do
-        #     rm -f "$file_to_purge"
-        # done
+        for file_to_purge in $files_to_purge; do
+            rm -f "$file_to_purge"
+        done
     else
     
         # Find and purge directories
@@ -136,16 +145,14 @@ purge_locales() {
         local dirs_to_purge=$(eval "$dirs_query")
         echo "dirs_to_purge: $dirs_to_purge"
         
-        # for dir_to_purge in $dirs_to_purge; do
-        #     find "$dir_to_purge" \( -type f -o -type l \) -exec rm -f {} +
-        # done
+        for dir_to_purge in $dirs_to_purge; do
+            find "$dir_to_purge" \( -type f -o -type l \) -exec rm -f {} +
+        done
     fi
 }
 
 check_runas_root
 load_config "$CONFIG_FILE"
-
-exit
 
 # Process each locale directory
 for locale_dir in "${locale_dirs[@]}"; do
