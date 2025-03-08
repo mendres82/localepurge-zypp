@@ -42,9 +42,13 @@ respond() {
 
 # Get system locale (e.g., "en_US")
 get_system_locale() {
+    local system_locale=""
     
-    # Get locale from LANG environment variable
-    local system_locale=$(locale | grep '^LANG=' | cut -d'=' -f2 | sed 's/["]//g' | cut -d'.' -f1)
+    if [ -f "/etc/locale.conf" ]; then
+        system_locale=$(grep '^LANG=' /etc/locale.conf | cut -d'=' -f2 | sed 's/["]//g' | cut -d'.' -f1)
+    else
+        system_locale=$(locale | grep '^LANG=' | cut -d'=' -f2 | sed 's/["]//g' | cut -d'.' -f1)
+    fi
     
     # Default to "en_US" if we couldn't determine the system locale
     if [ -z "$system_locale" ] || [ "$system_locale" = "C" ] || [ "$system_locale" = "POSIX" ]; then
