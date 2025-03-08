@@ -72,7 +72,9 @@ load_config() {
     local config_file="$1"
     
     if [ -f "$config_file" ]; then
+
         debug "CONFIG_FILE: $config_file"
+        
         while read -r line || [ -n "$line" ]; do
         
             # Parse key-value pairs from config file
@@ -108,6 +110,8 @@ load_config() {
     locale_dirs=("${locale_dirs[@]//x11/X11}")
     locale_dirs=($(for d in "${locale_dirs[@]}"; do [ -d "$d" ] && echo "$d"; done))
 
+    # Process keep_locales: convert to array, normalize case (C is uppercase),
+    # convert country codes to uppercase (e.g., en_us -> en_US), and validate format
     IFS=',' read -ra keep_locales <<< "${CONFIG_KEEP_LOCALES,,}"
     keep_locales=($(printf '%s\n' "${keep_locales[@]}" | sed 's/\bc\b/C/g' | \
         sed 's/_\([a-z][a-z]\)/_\U\1/g' | \
@@ -124,49 +128,6 @@ load_config() {
     debug "system_locale: $(get_system_locale)"
     debug "locale_dirs: ${locale_dirs[*]}"
     debug "keep_locales: ${keep_locales[*]}"
-}
-
-# Process each locale directory
-process_locale_dirs() {
-    for locale_dir in "${locale_dirs[@]}"; do
-        case $locale_dir in
-            "/usr/share/help"|"/usr/share/locale")
-
-                # searchpattern, e.g.: "/C($)|/en($)|/de($)"
-                searchpattern=$(printf "/%s($)|" "${keep_locales[@]}" | sed 's/|$//')
-
-                purge_locales "$locale_dir" "$searchpattern"
-                ;;
-            "/usr/share/man")
-
-                # searchpattern, e.g.: "/C|/en|/de|/man[^/]" 
-                searchpattern=$(printf "/%s|" "${keep_locales[@]}" | sed 's/|$//')
-                searchpattern="$searchpattern|/man[^/]"
-
-                purge_locales "$locale_dir" "$searchpattern"
-                ;;
-            "/usr/share/qt5/translations")
-
-                # searchpattern, e.g.: "_C\.|_en\.|_de\."
-                searchpattern=$(printf "_%s\.|" "${keep_locales[@]}")
-                searchpattern="${searchpattern}_\."
-
-                purge_locales "$locale_dir" "$searchpattern" "" "" "true"
-                ;;
-            "/usr/share/X11/locale")
-
-                # include_pattern, e.g.: "/..([_.]|$)"
-                include_pattern="/..([_.]|$)"
-
-                # exclude_pattern, e.g.: "/C([_.]|$)|/en([_.]|$)|/de([_.]|$)"
-                exclude_pattern=$(printf "|/%s([_.]|$)" "${keep_locales[@]}" | sed 's/^|//')
-
-                purge_locales "$locale_dir" "" "$include_pattern" "$exclude_pattern"
-                ;;
-            *)
-                ;;
-        esac
-    done
 }
 
 # Purge locale directories based on specified patterns
@@ -200,9 +161,49 @@ purge_locales() {
     fi
 }
 
-ret=0
+# Process each locale directory
+process_locale_dirs() {
+    for locale_dir in "${locale_dirs[@]}"; do
+        case $locale_dir in
+            "/usr/share/help"|"/usr/share/locale")
 
-# Parsing libzypp hooks and waiting for COMMITEND
+                # searchpattern, e.g.: "/C($)|/en($)|/de($)"
+                searchpattern=$(printf "/%s($)|" "${keep_locales[@]}" | sed 's/|$//')
+
+                purge_locales "$locale_dir" "$searchpattern"
+                ;;
+            "/usr/share/man")
+
+                # searchpattern, e.g.: "/C|/en|/de|/man[^/]" 
+                searchpattern=$(printf "/%s|" "${keep_locales[@]}" | sed 's/|$//')
+                searchpattern="$searchpattern|/man[^/]"
+
+                purge_locales "$locale_dir" "$searchpattern"
+                ;;
+            "/usr/share/qt5/translations")
+
+                # searchpattern, e.g.: "_C\.|_en\.|_de\.|_\."
+                searchpattern=$(printf "_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
+
+                purge_locales "$locale_dir" "$searchpattern" "" "" "true"
+                ;;
+            "/usr/share/X11/locale")
+
+                # include_pattern, e.g.: "/..([_.]|$)"
+                include_pattern="/..([_.]|$)"
+
+                # exclude_pattern, e.g.: "/C([_.]|$)|/en([_.]|$)|/de([_.]|$)"
+                exclude_pattern=$(printf "|/%s([_.]|$)" "${keep_locales[@]}" | sed 's/^|//')
+
+                purge_locales "$locale_dir" "" "$include_pattern" "$exclude_pattern"
+                ;;
+            *)
+                ;;
+        esac
+    done
+}
+
+# Parsing libzypp hooks, waiting for PLUGINBEGIN and COMMITEND
 while IFS= read -r -d $'\0' FRAME; do
     echo ">>" $FRAME | debug
 
@@ -232,5 +233,4 @@ while IFS= read -r -d $'\0' FRAME; do
     esac
 done
 
-debug "Terminating with exit code $ret"
-exit $ret
+exit 0
