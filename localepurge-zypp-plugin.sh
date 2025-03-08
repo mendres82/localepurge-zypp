@@ -55,20 +55,20 @@ get_system_locale() {
         system_locale="en_US"
     fi
     
-    echo "$system_locale"
+    printf '%s' "$system_locale"
 }
 
 # Get system language code (e.g., "en")
 get_system_lang() {
     local system_locale=$(get_system_locale)
-    local system_lang=$(echo "$system_locale" | cut -d'_' -f1)
+    local system_lang=$(cut -d'_' -f1 <<< "$system_locale")
     
     # Default to 'en' if we couldn't determine the system language
     if [ -z "$system_lang" ]; then
         system_lang="en"
     fi
     
-    echo "$system_lang"
+    printf '%s' "$system_lang"
 }
 
 # Load configuration from file and process settings
@@ -85,7 +85,7 @@ load_config() {
             if [[ $line =~ ^[[:space:]]*([^=]+)[[:space:]]*=[[:space:]]*(.*)[[:space:]]*$ ]]; then
                 
                 # Trim whitespace from key
-                key=$(echo "${BASH_REMATCH[1]}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                key=$(sed 's/^[[:space:]]*//;s/[[:space:]]*$//' <<< "${BASH_REMATCH[1]}")
                 value="${BASH_REMATCH[2]}"
 
                 # Remove surrounding quotes if present
@@ -93,10 +93,10 @@ load_config() {
                 value="${value%\"}"
                 
                 # Remove spaces
-                value=$(echo "$value" | sed 's/[[:space:]]*,[[:space:]]*/,/g')
+                value=$(sed 's/[[:space:]]*,[[:space:]]*/,/g' <<< "$value")
                 
                 # Trim leading and trailing whitespaces
-                value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                value=$(sed 's/^[[:space:]]*//;s/[[:space:]]*$//' <<< "$value")
                 
                 debug "Key: \"$key\", Value: \"$value\""
                 
@@ -112,7 +112,7 @@ load_config() {
     # Process locale directories: convert to lowercase, fix X11 case, verify directory exists
     IFS=',' read -ra locale_dirs <<< "${CONFIG_LOCALE_DIRS,,}"
     locale_dirs=("${locale_dirs[@]//x11/X11}")
-    locale_dirs=($(for d in "${locale_dirs[@]}"; do [ -d "$d" ] && echo "$d"; done))
+    locale_dirs=($(for d in "${locale_dirs[@]}"; do [ -d "$d" ] && printf '%s\n' "$d"; done))
 
     # Process locales to keep: convert to array, normalize case (C is uppercase),
     # convert country codes to uppercase (e.g., en_us -> en_US), and validate format
@@ -207,7 +207,7 @@ process_locale_dirs() {
 
 # Parsing libzypp commands, waiting for PLUGINBEGIN and COMMITEND
 while IFS= read -r -d $'\0' FRAME; do
-    echo ">>" $FRAME | debug
+    debug ">> $FRAME"
 
     read COMMAND <<<$FRAME
 
