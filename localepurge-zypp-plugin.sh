@@ -13,7 +13,7 @@
 # - Minimal performance impact during package operations
 # - Compatible with zypper and YaST
 
-DEBUG="false"
+DEBUG=false
 
 # Get the name of the script without path for logging
 SCRIPTNAME="$(basename "$0")"
@@ -29,7 +29,7 @@ log() {
     logger -p info -t "$SCRIPTNAME" --id=$$ "$@"
 }
 
-# Debug logging function (set DEBUG="true" to enable)
+# Debug logging function (set DEBUG=true to enable)
 debug() {
     $DEBUG && log "$@"
 }
@@ -139,19 +139,20 @@ purge_locales() {
     local locale_dir="$1"
     local exclude_pattern="$2"
     local include_pattern="$3"
-    local is_file_based="${4:-false}"
+    local is_single_directory="${4:-false}"
 
     debug "locale_dir: \"$locale_dir\""
     debug "exclude_pattern: \"$exclude_pattern\""
 
     [[ -n "$include_pattern" ]] && debug "include_pattern: \"$include_pattern\""
 
-    if [[ "$is_file_based" == "true" ]]; then
-        local files_to_purge=$(find "$locale_dir" \( -type f -o -type l \) | grep -vE "$exclude_pattern")
+    if [[ "$is_single_directory" = true ]]; then
+        local files_query="find \"$locale_dir\" \\( -type f -o -type l \\)"
+        [[ -n "$exclude_pattern" ]] && files_query+=" | grep -vE \"$exclude_pattern\""
 
-        for file_to_purge in $files_to_purge; do
-            rm -f "$file_to_purge"
-        done
+        debug "files_query: \"$files_query\""
+        
+        eval "$files_query" | xargs -r -P4 rm -f
     else
         local dirs_query="find \"$locale_dir\" -mindepth 1 -maxdepth 1 -type d"
         [[ -n "$include_pattern" ]] && dirs_query+=" | grep -E \"$include_pattern\""
@@ -187,7 +188,7 @@ process_locale_dirs() {
                 # exclude_pattern, e.g.: "_C\.|_en\.|_de\."
                 exclude_pattern=$(printf "_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
 
-                purge_locales "$locale_dir" "$exclude_pattern" "" "true"
+                purge_locales "$locale_dir" "$exclude_pattern" "" true
                 ;;
             "/usr/share/X11/locale")
 
