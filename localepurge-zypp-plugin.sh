@@ -73,7 +73,7 @@ load_config() {
     
     if [ -f "$config_file" ]; then
 
-        debug "CONFIG_FILE: $config_file"
+        debug "CONFIG_FILE: \"$config_file\""
         
         while read -r line || [ -n "$line" ]; do
         
@@ -94,7 +94,7 @@ load_config() {
                 # Trim leading and trailing whitespaces
                 value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                 
-                debug "Key: $key, Value: $value"
+                debug "Key: \"$key\", Value: \"$value\""
                 
                 case "$key" in
                     "keep_locales") CONFIG_KEEP_LOCALES="$value" ;;
@@ -102,7 +102,7 @@ load_config() {
             fi
         done < "$config_file"
     else
-        debug "CONFIG_FILE: $config_file not found"
+        debug "CONFIG_FILE: \"$config_file\" not found"
     fi
 
     # Process locale directories: convert to lowercase, fix X11 case, verify directory exists
@@ -124,29 +124,27 @@ load_config() {
         [[ ! " ${keep_locales[*]} " =~ " ${locale} " ]] && keep_locales+=("$locale")
     done
 
-    debug "system_lang: $(get_system_lang)"
-    debug "system_locale: $(get_system_locale)"
-    debug "locale_dirs: ${locale_dirs[*]}"
-    debug "keep_locales: ${keep_locales[*]}"
+    debug "system_lang: \"$(get_system_lang)\""
+    debug "system_locale: \"$(get_system_locale)\""
+    debug "locale_dirs: \"${locale_dirs[*]}\""
+    debug "keep_locales: \"${keep_locales[*]}\""
 }
 
 # Purge locale directories based on specified patterns
 purge_locales() {
     local locale_dir="$1"
-    local search_pattern="$2"
+    local exclude_pattern="$2"
     local include_pattern="$3"
-    local exclude_pattern="$4"
-    local is_file_based="${5:-false}"
+    local is_file_based="${4:-false}"
 
-    debug "locale_dir: $locale_dir"
-    debug "searchpattern: $search_pattern"
-    [[ -n "$include_pattern" ]] && debug "include_pattern: $include_pattern"
-    [[ -n "$exclude_pattern" ]] && debug "exclude_pattern: $exclude_pattern"
+    debug "locale_dir: \"$locale_dir\""
+    debug "exclude_pattern: \"$exclude_pattern\""
+    [[ -n "$include_pattern" ]] && debug "include_pattern: \"$include_pattern\""
 
     if [[ "$is_file_based" == "true" ]]; then
 
         # Find and purge individual files
-        local files_to_purge=$(find "$locale_dir" \( -type f -o -type l \) | grep -vE "$search_pattern")
+        local files_to_purge=$(find "$locale_dir" \( -type f -o -type l \) | grep -vE "$exclude_pattern")
 
         for file_to_purge in $files_to_purge; do
             rm -f "$file_to_purge"
@@ -155,7 +153,6 @@ purge_locales() {
         local dirs_query="find \"$locale_dir\" -mindepth 1 -maxdepth 1 -type d"
         [[ -n "$include_pattern" ]] && dirs_query+=" | grep -E \"$include_pattern\""
         [[ -n "$exclude_pattern" ]] && dirs_query+=" | grep -vE \"$exclude_pattern\""
-        [[ -z "$include_pattern" ]] && dirs_query+=" | grep -vE \"$search_pattern\""
         
         eval "$dirs_query" | xargs -r -P4 -I{} find {} \( -type f -o -type l \) -delete
     fi
@@ -167,25 +164,25 @@ process_locale_dirs() {
         case $locale_dir in
             "/usr/share/help"|"/usr/share/locale")
 
-                # searchpattern, e.g.: "/C($)|/en($)|/de($)"
-                searchpattern=$(printf "/%s($)|" "${keep_locales[@]}" | sed 's/|$//')
+                # exclude_pattern, e.g.: "/C($)|/en($)|/de($)"
+                exclude_pattern=$(printf "/%s($)|" "${keep_locales[@]}" | sed 's/|$//')
 
-                purge_locales "$locale_dir" "$searchpattern"
+                purge_locales "$locale_dir" "$exclude_pattern"
                 ;;
             "/usr/share/man")
 
-                # searchpattern, e.g.: "/C|/en|/de|/man[^/]" 
-                searchpattern=$(printf "/%s|" "${keep_locales[@]}" | sed 's/|$//')
-                searchpattern="$searchpattern|/man[^/]"
+                # exclude_pattern, e.g.: "/C|/en|/de|/man[^/]" 
+                exclude_pattern=$(printf "/%s|" "${keep_locales[@]}" | sed 's/|$//')
+                exclude_pattern="$exclude_pattern|/man[^/]"
 
-                purge_locales "$locale_dir" "$searchpattern"
+                purge_locales "$locale_dir" "$exclude_pattern"
                 ;;
             "/usr/share/qt5/translations"|"/usr/share/qt6/translations")
 
-                # searchpattern, e.g.: "_C\.|_en\.|_de\.|_\."
-                searchpattern=$(printf "_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
+                # exclude_pattern, e.g.: "_C\.|_en\.|_de\.|_\."
+                exclude_pattern=$(printf "_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
 
-                purge_locales "$locale_dir" "$searchpattern" "" "" "true"
+                purge_locales "$locale_dir" "$exclude_pattern" "" "true"
                 ;;
             "/usr/share/X11/locale")
 
@@ -195,7 +192,7 @@ process_locale_dirs() {
                 # exclude_pattern, e.g.: "/C([_.]|$)|/en([_.]|$)|/de([_.]|$)"
                 exclude_pattern=$(printf "|/%s([_.]|$)" "${keep_locales[@]}" | sed 's/^|//')
 
-                purge_locales "$locale_dir" "" "$include_pattern" "$exclude_pattern"
+                purge_locales "$locale_dir" "$exclude_pattern" "$include_pattern"
                 ;;
             *)
                 ;;
