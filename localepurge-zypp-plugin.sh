@@ -19,7 +19,7 @@ DEBUG="false"
 SCRIPTNAME="$(basename "$0")"
 
 # Default configuration values for locale directories and languages to keep
-CONFIG_LOCALE_DIRS="/usr/share/help,/usr/share/locale,/usr/share/man,/usr/share/qt5/translations,/usr/share/X11/locale"
+CONFIG_LOCALE_DIRS="/usr/share/help,/usr/share/locale,/usr/share/man,/usr/share/qt5/translations,/usr/share/qt6/translations,/usr/share/X11/locale"
 CONFIG_KEEP_LOCALES="C,en"
 
 CONFIG_FILE="/etc/localepurge-zypp.conf"
@@ -180,7 +180,7 @@ process_locale_dirs() {
 
                 purge_locales "$locale_dir" "$searchpattern"
                 ;;
-            "/usr/share/qt5/translations")
+            "/usr/share/qt5/translations"|"/usr/share/qt6/translations")
 
                 # searchpattern, e.g.: "_C\.|_en\.|_de\.|_\."
                 searchpattern=$(printf "_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
