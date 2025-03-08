@@ -4,18 +4,18 @@
 # Author : mendres
 # Release date : 08 March 2025
 #
-# This script is a plugin for the zypper package manager that removes unnecessary locale files during package installation to save disk space.
+# This script is a plugin for the zypper package manager and removes unwanted locale files after package installation to save disk space.
 #
 # Features:
-# - Automatically removes unnecessary locale files during package installation
-# - Respects your system's configured locales
+# - Automatically removes locale files after package installation
+# - Respects your system's locale settings
 # - Configurable through simple configuration file
 # - Minimal performance impact during package operations
 # - Compatible with zypper and YaST
 
 DEBUG="false"
 
-# Get the name of the script without path for logger
+# Get the name of the script without path for logging
 SCRIPTNAME="$(basename "$0")"
 
 # Default configuration values for locale directories and languages to keep
@@ -24,12 +24,12 @@ CONFIG_KEEP_LOCALES="C,en"
 
 CONFIG_FILE="/etc/localepurge-zypp.conf"
 
-# Log a message to the system logger (syslog)
+# Log a message to the system logger
 log() {
     logger -p info -t "$SCRIPTNAME" --id=$$ "$@"
 }
 
-# Debug logging function that only logs if DEBUG is true
+# Debug logging function (set DEBUG="true" to enable)
 debug() {
     $DEBUG && log "$@"
 }
@@ -114,7 +114,7 @@ load_config() {
     locale_dirs=("${locale_dirs[@]//x11/X11}")
     locale_dirs=($(for d in "${locale_dirs[@]}"; do [ -d "$d" ] && echo "$d"; done))
 
-    # Process keep_locales: convert to array, normalize case (C is uppercase),
+    # Process locales to keep: convert to array, normalize case (C is uppercase),
     # convert country codes to uppercase (e.g., en_us -> en_US), and validate format
     IFS=',' read -ra keep_locales <<< "${CONFIG_KEEP_LOCALES,,}"
     keep_locales=($(printf '%s\n' "${keep_locales[@]}" | sed 's/\bc\b/C/g' | \
@@ -147,8 +147,6 @@ purge_locales() {
     [[ -n "$include_pattern" ]] && debug "include_pattern: \"$include_pattern\""
 
     if [[ "$is_file_based" == "true" ]]; then
-
-        # Find and purge individual files
         local files_to_purge=$(find "$locale_dir" \( -type f -o -type l \) | grep -vE "$exclude_pattern")
 
         for file_to_purge in $files_to_purge; do
@@ -207,7 +205,7 @@ process_locale_dirs() {
     done
 }
 
-# Parsing libzypp hooks, waiting for PLUGINBEGIN and COMMITEND
+# Parsing libzypp commands, waiting for PLUGINBEGIN and COMMITEND
 while IFS= read -r -d $'\0' FRAME; do
     echo ">>" $FRAME | debug
 

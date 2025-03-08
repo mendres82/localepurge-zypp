@@ -1,15 +1,15 @@
-# localepurge-zypp
+# Localepurge Zypper Plugin
 
-A zypper plugin that removes unnecessary locale files during package installation to save disk space.
+A zypper plugin that removes unwanted locale files after package installation to save disk space.
 
 ## Overview
 
-localepurge-zypp is a plugin for the zypper package manager that automatically removes locale files that don't match your system's configured locales. This helps reduce disk usage by eliminating unused translation files.
+localepurge-zypp is a plugin for the zypper package manager and automatically removes locale files that don't match your system's locale settings or should be kept. This helps reduce disk usage by eliminating unused translation files.
 
 ## Features
 
-- Automatically removes unnecessary locale files during package installation
-- Respects your system's configured locales
+- Automatically removes locale files after package installation
+- Respects your system's locale settings
 - Configurable through simple configuration file
 - Minimal performance impact during package operations
 - Compatible with zypper and YaST
