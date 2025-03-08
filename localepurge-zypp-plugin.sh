@@ -44,14 +44,14 @@ respond() {
 get_system_locale() {
     local system_locale=""
     
-    if [ -f "/etc/locale.conf" ]; then
+    if [[ -f "/etc/locale.conf" ]]; then
         system_locale=$(grep '^LANG=' /etc/locale.conf | cut -d'=' -f2 | sed 's/["]//g' | cut -d'.' -f1)
     else
         system_locale=$(locale | grep '^LANG=' | cut -d'=' -f2 | sed 's/["]//g' | cut -d'.' -f1)
     fi
     
     # Default to "en_US" if we couldn't determine the system locale
-    if [ -z "$system_locale" ] || [ "$system_locale" = "C" ] || [ "$system_locale" = "POSIX" ]; then
+    if [[ -z "$system_locale" ]] || [[ "$system_locale" = "C" ]] || [[ "$system_locale" = "POSIX" ]]; then
         system_locale="en_US"
     fi
     
@@ -75,13 +75,12 @@ get_system_lang() {
 load_config() {
     local config_file="$1"
     
-    if [ -f "$config_file" ]; then
-
+    if [[ -f "$config_file" ]]; then
         debug "CONFIG_FILE: \"$config_file\""
         
-        while read -r line || [ -n "$line" ]; do
+        while read -r line || [[ -n "$line" ]]; do
         
-            # Parse key-value pairs from config file
+            # Parse key/value pairs from config file
             if [[ $line =~ ^[[:space:]]*([^=]+)[[:space:]]*=[[:space:]]*(.*)[[:space:]]*$ ]]; then
                 
                 # Trim whitespace from key
@@ -112,7 +111,7 @@ load_config() {
     # Process locale directories: convert to lowercase, fix X11 case, verify directory exists
     IFS=',' read -ra locale_dirs <<< "${CONFIG_LOCALE_DIRS,,}"
     locale_dirs=("${locale_dirs[@]//x11/X11}")
-    locale_dirs=($(for d in "${locale_dirs[@]}"; do [ -d "$d" ] && printf '%s\n' "$d"; done))
+    locale_dirs=($(for d in "${locale_dirs[@]}"; do [[ -d "$d" ]] && printf '%s\n' "$d"; done))
 
     # Process locales to keep: convert to array, normalize case (C is uppercase),
     # convert country codes to uppercase (e.g., en_us -> en_US), and validate format
@@ -143,7 +142,6 @@ purge_locales() {
 
     debug "locale_dir: \"$locale_dir\""
     debug "exclude_pattern: \"$exclude_pattern\""
-
     [[ -n "$include_pattern" ]] && debug "include_pattern: \"$include_pattern\""
 
     if [[ "$is_single_directory" = true ]]; then
