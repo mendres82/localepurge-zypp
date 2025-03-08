@@ -139,20 +139,19 @@ purge_locales() {
     local locale_dir="$1"
     local exclude_pattern="$2"
     local include_pattern="$3"
-    local is_single_directory="${4:-false}"
+    local is_file_based="${4:-false}"
 
     debug "locale_dir: \"$locale_dir\""
     debug "exclude_pattern: \"$exclude_pattern\""
 
     [[ -n "$include_pattern" ]] && debug "include_pattern: \"$include_pattern\""
 
-    if [[ "$is_single_directory" ]]; then
-        local files_query="find \"$locale_dir\" \\( -type f -o -type l \\)"
-        [[ -n "$exclude_pattern" ]] && files_query+=" | grep -vE \"$exclude_pattern\""
+    if [[ "$is_file_based" == "true" ]]; then
+        local files_to_purge=$(find "$locale_dir" \( -type f -o -type l \) | grep -vE "$exclude_pattern")
 
-        debug "files_query: \"$files_query\""
-        
-        eval "$files_query" | xargs -r -P4 rm -f
+        for file_to_purge in $files_to_purge; do
+            rm -f "$file_to_purge"
+        done
     else
         local dirs_query="find \"$locale_dir\" -mindepth 1 -maxdepth 1 -type d"
         [[ -n "$include_pattern" ]] && dirs_query+=" | grep -E \"$include_pattern\""
