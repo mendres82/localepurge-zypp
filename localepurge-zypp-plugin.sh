@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Localepurge Zypper Plugin 0.3
+# Localepurge Zypper Plugin 0.3.1
 # Author : mendres
 # Release date : 08 March 2025
 #
@@ -139,6 +139,7 @@ purge_locales() {
 
     debug "locale_dir: \"$locale_dir\""
     debug "exclude_pattern: \"$exclude_pattern\""
+
     [[ -n "$include_pattern" ]] && debug "include_pattern: \"$include_pattern\""
 
     if [[ "$is_file_based" == "true" ]]; then
@@ -153,6 +154,8 @@ purge_locales() {
         local dirs_query="find \"$locale_dir\" -mindepth 1 -maxdepth 1 -type d"
         [[ -n "$include_pattern" ]] && dirs_query+=" | grep -E \"$include_pattern\""
         [[ -n "$exclude_pattern" ]] && dirs_query+=" | grep -vE \"$exclude_pattern\""
+
+        debug "dirs_query: \"$dirs_query\""
         
         eval "$dirs_query" | xargs -r -P4 -I{} find {} \( -type f -o -type l \) -delete
     fi
@@ -179,7 +182,7 @@ process_locale_dirs() {
                 ;;
             "/usr/share/qt5/translations"|"/usr/share/qt6/translations")
 
-                # exclude_pattern, e.g.: "_C\.|_en\.|_de\.|_\."
+                # exclude_pattern, e.g.: "_C\.|_en\.|_de\."
                 exclude_pattern=$(printf "_%s\.|" "${keep_locales[@]}" | sed 's/|$//')
 
                 purge_locales "$locale_dir" "$exclude_pattern" "" "true"
