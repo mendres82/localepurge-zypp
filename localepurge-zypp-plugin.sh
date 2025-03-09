@@ -81,7 +81,7 @@ get_system_lang() {
     local system_lang=$(cut -d'_' -f1 <<< "$system_locale")
     
     # Default to 'en' if we couldn't determine the system language
-    if [ -z "$system_lang" ]; then
+    if [[ -z "$system_lang" ]]; then
         system_lang="en"
     fi
     
@@ -245,7 +245,7 @@ while IFS= read -r -d $'\0' FRAME; do
     COMMITEND)
         process_locale_dirs
 
-        if [ $ret -ne 0 ]; then
+        if [[ $ret -ne 0 ]]; then
             respond "ERROR"
         else
             respond "ACK"
@@ -262,4 +262,5 @@ while IFS= read -r -d $'\0' FRAME; do
     esac
 done
 
+debug -- "Terminating with exit code $ret"
 exit $ret
