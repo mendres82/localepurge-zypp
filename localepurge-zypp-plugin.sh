@@ -14,6 +14,7 @@
 # - Compatible with zypper and YaST
 
 DEBUG=false
+ret=0
 
 # Get the name of the script without path for logging
 SCRIPTNAME="$(basename "$0")"
@@ -34,9 +35,25 @@ debug() {
     $DEBUG && log "$@"
 }
 
+# Execute a command and log error output
+execute() {
+    debug -- "Executing: $*"
+
+    local cmd_output=$("$@" 2>&1)
+    local cmd_status=$?
+
+    if [[ $cmd_status -ne 0 ]]; then
+        ret=1
+        log -- "Command failed (exit code $cmd_status): $*"
+        log -- "Error output: $cmd_output"
+    else
+        debug -- "Command succeeded: $*"
+    fi
+}
+
 # Send a response back to the zypper plugin framework
 respond() {
-    debug "<< [$1]"
+    debug -- "<< [$1]"
     echo -ne "$1\n\n\x00"
 }
 
@@ -76,7 +93,7 @@ load_config() {
     local config_file="$1"
     
     if [[ -f "$config_file" ]]; then
-        debug "CONFIG_FILE: \"$config_file\""
+        debug -- "CONFIG_FILE: \"$config_file\""
         
         while read -r line || [[ -n "$line" ]]; do
         
@@ -97,7 +114,7 @@ load_config() {
                 # Trim leading and trailing whitespaces
                 value=$(sed 's/^[[:space:]]*//;s/[[:space:]]*$//' <<< "$value")
                 
-                debug "Key: \"$key\", Value: \"$value\""
+                debug -- "Key: \"$key\", Value: \"$value\""
                 
                 case "$key" in
                     "keep_locales") CONFIG_KEEP_LOCALES="$value" ;;
@@ -105,7 +122,7 @@ load_config() {
             fi
         done < "$config_file"
     else
-        debug "CONFIG_FILE: \"$config_file\" not found"
+        debug -- "CONFIG_FILE: \"$config_file\" not found"
     fi
 
     # Process locale directories: convert to lowercase, fix X11 case, verify directory exists
@@ -127,10 +144,10 @@ load_config() {
         [[ ! " ${keep_locales[*]} " =~ " ${locale} " ]] && keep_locales+=("$locale")
     done
 
-    debug "system_lang: \"$(get_system_lang)\""
-    debug "system_locale: \"$(get_system_locale)\""
-    debug "locale_dirs: \"${locale_dirs[*]}\""
-    debug "keep_locales: \"${keep_locales[*]}\""
+    debug -- "system_lang: \"$(get_system_lang)\""
+    debug -- "system_locale: \"$(get_system_locale)\""
+    debug -- "locale_dirs: \"${locale_dirs[*]}\""
+    debug -- "keep_locales: \"${keep_locales[*]}\""
 }
 
 # Purge locale directories based on specified patterns
@@ -139,26 +156,33 @@ purge_locales() {
     local exclude_pattern="$2"
     local include_pattern="$3"
     local is_single_directory="${4:-false}"
+    local files_to_purge_count=0
 
-    debug "locale_dir: \"$locale_dir\""
-    debug "exclude_pattern: \"$exclude_pattern\""
-    [[ -n "$include_pattern" ]] && debug "include_pattern: \"$include_pattern\""
+    debug -- "locale_dir: \"$locale_dir\""
+    debug -- "exclude_pattern: \"$exclude_pattern\""
+    [[ -n "$include_pattern" ]] && debug -- "include_pattern: \"$include_pattern\""
 
     if [[ "$is_single_directory" = true ]]; then
-        local files_query="find \"$locale_dir\" \\( -type f -o -type l \\)"
-        [[ -n "$exclude_pattern" ]] && files_query+=" | grep -vE \"$exclude_pattern\""
+        local search_query="find \"$locale_dir\" \\( -type f -o -type l \\)"
+        [[ -n "$exclude_pattern" ]] && search_query+=" | grep -vE \"$exclude_pattern\""
 
-        debug "files_query: \"$files_query\""
+        files_to_purge_count=$(eval "$search_query" | wc -l)
+
+        debug -- "search_query: \"$search_query\""
+        debug -- "Files to purge from \"$locale_dir\": $files_to_purge_count"
         
-        eval "$files_query" | xargs -r -P4 rm -f
+        eval "$search_query" | execute xargs -r -P4 rm -f
     else
-        local dirs_query="find \"$locale_dir\" -mindepth 1 -maxdepth 1 -type d"
-        [[ -n "$include_pattern" ]] && dirs_query+=" | grep -E \"$include_pattern\""
-        [[ -n "$exclude_pattern" ]] && dirs_query+=" | grep -vE \"$exclude_pattern\""
+        local search_query="find \"$locale_dir\" -mindepth 1 -maxdepth 1 -type d"
+        [[ -n "$include_pattern" ]] && search_query+=" | grep -E \"$include_pattern\""
+        [[ -n "$exclude_pattern" ]] && search_query+=" | grep -vE \"$exclude_pattern\""
 
-        debug "dirs_query: \"$dirs_query\""
+        files_to_purge_count=$(eval "$search_query" | xargs -r -I{} find {} \( -type f -o -type l \) | wc -l)
+
+        debug -- "search_query: \"$search_query\""
+        debug -- "Files to purge from \"$locale_dir\": $files_to_purge_count"
         
-        eval "$dirs_query" | xargs -r -P4 -I{} find {} \( -type f -o -type l \) -delete
+        eval "$search_query" | execute xargs -r -P4 -I{} find {} \( -type f -o -type l \) -delete
     fi
 }
 
@@ -206,11 +230,11 @@ process_locale_dirs() {
 
 # Parsing libzypp commands, waiting for PLUGINBEGIN and COMMITEND
 while IFS= read -r -d $'\0' FRAME; do
-    debug ">> $FRAME"
+    debug -- ">> $FRAME"
 
     read COMMAND <<<$FRAME
 
-    debug "COMMAND=[$COMMAND]"
+    debug -- "COMMAND=[$COMMAND]"
     case "$COMMAND" in
     PLUGINBEGIN)
         load_config "$CONFIG_FILE"
@@ -221,7 +245,11 @@ while IFS= read -r -d $'\0' FRAME; do
     COMMITEND)
         process_locale_dirs
 
-        respond "ACK"
+        if [ $ret -ne 0 ]; then
+            respond "ERROR"
+        else
+            respond "ACK"
+        fi
         ;;
     _DISCONNECT)
         respond "ACK"
@@ -234,4 +262,4 @@ while IFS= read -r -d $'\0' FRAME; do
     esac
 done
 
-exit 0
+exit $ret
