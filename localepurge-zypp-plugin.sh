@@ -156,7 +156,7 @@ purge_locales() {
     local exclude_pattern="$2"
     local include_pattern="$3"
     local is_single_directory="${4:-false}"
-    local deleted_count=0
+    local files_to_purge_count=0
 
     debug -- "locale_dir: \"$locale_dir\""
     debug -- "exclude_pattern: \"$exclude_pattern\""
@@ -166,22 +166,24 @@ purge_locales() {
         local search_query="find \"$locale_dir\" \\( -type f -o -type l \\)"
         [[ -n "$exclude_pattern" ]] && search_query+=" | grep -vE \"$exclude_pattern\""
 
+        files_to_purge_count=$(eval "$search_query" | wc -l)
+
         debug -- "search_query: \"$search_query\""
+        debug -- "Files to purge from \"$locale_dir\": $files_to_purge_count"
         
-        deleted_count=$(eval "$search_query" | wc -l)
         eval "$search_query" | execute xargs -r -P4 rm -f
     else
         local search_query="find \"$locale_dir\" -mindepth 1 -maxdepth 1 -type d"
         [[ -n "$include_pattern" ]] && search_query+=" | grep -E \"$include_pattern\""
         [[ -n "$exclude_pattern" ]] && search_query+=" | grep -vE \"$exclude_pattern\""
 
+        files_to_purge_count=$(eval "$search_query" | xargs -r -I{} find {} \( -type f -o -type l \) | wc -l)
+
         debug -- "search_query: \"$search_query\""
+        debug -- "Files to purge from \"$locale_dir\": $files_to_purge_count"
         
-        deleted_count=$(eval "$search_query" | xargs -r -I{} find {} \( -type f -o -type l \) | wc -l)
         eval "$search_query" | execute xargs -r -P4 -I{} find {} \( -type f -o -type l \) -delete
     fi
-
-    debug -- "Purged $deleted_count files from \"$locale_dir\""
 }
 
 # Process each locale directory
