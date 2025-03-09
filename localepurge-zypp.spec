@@ -16,19 +16,20 @@
 #
 
 Name:           localepurge-zypp
-Version:        0.3.2
+Version:        0.3.5
 Release:        0
 Requires:       zypper >= 1.13.10
 Url:            https://github.com/mendres82/localepurge-zypp
 Source:         %{name}-%{version}.tar.xz
 BuildArch:      noarch
-Summary:        Zypper plugin that removes unnecessary locale files during package installation
+Summary:        Zypper plugin that removes unused locale files after package installation
 License:        MIT
 Group:          System/Packages
 
 %description
-This script is a plugin for the zypper package manager that removes unnecessary locale files
-during package installation to save disk space.
+localepurge-zypp is a plugin for the openSUSE zypper package manager and automatically removes locale files
+that don't match your system's locale settings or should be kept.
+This helps reduce disk usage by eliminating unused translation files.
 
 %prep
 %autosetup
