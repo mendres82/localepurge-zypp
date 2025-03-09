@@ -168,7 +168,8 @@ purge_locales() {
 
         debug -- "search_query: \"$search_query\""
         
-        deleted_count=$(eval "$search_query" | tee >(wc -l) | xargs -r -P4 -I{} execute rm -f {})
+        deleted_count=$(eval "$search_query" | wc -l)
+        eval "$search_query" | execute xargs -r -P4 rm -f
     else
         local search_query="find \"$locale_dir\" -mindepth 1 -maxdepth 1 -type d"
         [[ -n "$include_pattern" ]] && search_query+=" | grep -E \"$include_pattern\""
@@ -177,7 +178,7 @@ purge_locales() {
         debug -- "search_query: \"$search_query\""
         
         deleted_count=$(eval "$search_query" | xargs -r -I{} find {} \( -type f -o -type l \) | wc -l)
-        eval "$search_query" | xargs -r -P4 -I{} find {} \( -type f -o -type l \) -exec execute rm -f {} \;
+        eval "$search_query" | execute xargs -r -P4 -I{} find {} \( -type f -o -type l \) -delete
     fi
 
     debug -- "Purged $deleted_count files from \"$locale_dir\""
