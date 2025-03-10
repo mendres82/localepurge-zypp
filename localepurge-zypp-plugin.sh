@@ -25,9 +25,17 @@ CONFIG_KEEP_LOCALES="C,en"
 
 CONFIG_FILE="/etc/localepurge-zypp.conf"
 
-# Log a message to the system logger
+# Log a message to the system logger with specified priority
 log() {
-    logger -p info -t "$SCRIPTNAME" --id=$$ "$@"
+    local priority="info"
+    if [ "$1" = "-e" ]; then
+        priority="error"
+        shift
+    elif [ "$1" = "-w" ]; then
+        priority="warning"
+        shift
+    fi
+    logger -p "$priority" -t "$SCRIPTNAME" --id=$$ "$@"
 }
 
 # Debug logging function (set DEBUG=true to enable)
@@ -44,8 +52,8 @@ execute() {
 
     if [[ $cmd_status -ne 0 ]]; then
         ret=1
-        log -- "Command failed (exit code $cmd_status): $*"
-        log -- "Error output: $cmd_output"
+        log -e -- "Command failed (exit code $cmd_status): $*"
+        log -e -- "Error output: $cmd_output"
     else
         debug -- "Command succeeded: $*"
     fi
@@ -93,7 +101,7 @@ load_config() {
     local config_file="$1"
     
     if [[ -f "$config_file" ]]; then
-        debug -- "CONFIG_FILE: \"$config_file\""
+        log -- "CONFIG_FILE: \"$config_file\""
         
         while read -r line || [[ -n "$line" ]]; do
         
@@ -122,7 +130,7 @@ load_config() {
             fi
         done < "$config_file"
     else
-        debug -- "CONFIG_FILE: \"$config_file\" not found"
+        log -w -- "CONFIG_FILE: \"$config_file\" not found"
     fi
 
     # Process locale directories: convert to lowercase, fix X11 case, verify directory exists
@@ -136,7 +144,7 @@ load_config() {
     
     # Prevent too many locales to keep
     if [ ${#keep_locales[@]} -gt 20 ]; then
-        debug -- "Error: keep_locales has too many arguments"
+        log -e -- "Error: keep_locales has too many arguments"
         ret=1
         return 1
     fi
@@ -177,7 +185,7 @@ purge_locales() {
         files_to_purge_count=$(eval "$search_query" | wc -l)
 
         debug -- "search_query: \"$search_query\""
-        debug -- "Files to purge from \"$locale_dir\": $files_to_purge_count"
+        log -- "Files to purge from \"$locale_dir\": $files_to_purge_count"
         
         eval "$search_query" | execute xargs -r -P4 rm -f
     else
@@ -188,7 +196,7 @@ purge_locales() {
         files_to_purge_count=$(eval "$search_query" | xargs -r -I{} find {} \( -type f -o -type l \) | wc -l)
 
         debug -- "search_query: \"$search_query\""
-        debug -- "Files to purge from \"$locale_dir\": $files_to_purge_count"
+        log -- "Files to purge from \"$locale_dir\": $files_to_purge_count"
         
         eval "$search_query" | execute xargs -r -P4 -I{} find {} \( -type f -o -type l \) -delete
     fi
@@ -275,5 +283,5 @@ while IFS= read -r -d $'\0' FRAME; do
     esac
 done
 
-debug -- "Terminating with exit code $ret"
+log -- "Terminating with exit code $ret"
 exit $ret
