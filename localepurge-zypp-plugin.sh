@@ -28,10 +28,10 @@ CONFIG_FILE="/etc/localepurge-zypp.conf"
 # Log a message to the system logger with specified priority
 log() {
     local priority="info"
-    if [ "$1" = "-e" ]; then
+    if [[ "$1" = "-e" ]]; then
         priority="error"
         shift
-    elif [ "$1" = "-w" ]; then
+    elif [[ "$1" = "-w" ]]; then
         priority="warning"
         shift
     fi
@@ -143,7 +143,7 @@ load_config() {
     IFS=',' read -ra keep_locales <<< "${CONFIG_KEEP_LOCALES,,}"
     
     # Prevent too many locales to keep
-    if [ ${#keep_locales[@]} -gt 20 ]; then
+    if [[ ${#keep_locales[@]} -gt 20 ]]; then
         log -e -- "Error: keep_locales has too many arguments"
         ret=1
         return 1
