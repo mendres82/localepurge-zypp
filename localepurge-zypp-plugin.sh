@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Localepurge Zypper Plugin 0.3.5
+# Localepurge Zypper Plugin 0.3.6
 # Author : mendres
-# Release date : 09 March 2025
+# Release date : 10 March 2025
 #
 # This script is a plugin for the openSUSE zypper package manager and removes unused locale files after package installation to save disk space.
 #

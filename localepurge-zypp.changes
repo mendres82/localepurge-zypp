@@ -1,4 +1,8 @@
 - Version bump [mendres82]
+- Minor improvements [mendres82]
+- Improved logging [mendres82]
+- Check keep_locales element count before processing [mendres82]
+- Version bump [mendres82]
 - Minor changes [mendres82]
 - Merge pull request #1 from mendres82/next [mendres82]
 - Fixed error handling and logging [mendres82]
