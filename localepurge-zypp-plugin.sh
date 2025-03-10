@@ -133,6 +133,14 @@ load_config() {
     # Process locales to keep: convert to array, normalize case (C is uppercase),
     # convert country codes to uppercase (e.g., en_us -> en_US), and validate format
     IFS=',' read -ra keep_locales <<< "${CONFIG_KEEP_LOCALES,,}"
+    
+    # Prevent too many locales to keep
+    if [ ${#keep_locales[@]} -gt 20 ]; then
+        debug -- "Error: keep_locales has too many arguments"
+        ret=1
+        return 1
+    fi
+    
     keep_locales=($(printf '%s\n' "${keep_locales[@]}" | sed 's/\bc\b/C/g' | \
         sed 's/_\([a-z][a-z]\)/_\U\1/g' | \
         grep -E '^(C|[a-z]{2}(_[A-Z]{2})?(@[a-z0-9]+)?(\.[a-zA-Z0-9-]+)?)$'))
@@ -239,8 +247,13 @@ while IFS= read -r -d $'\0' FRAME; do
     PLUGINBEGIN)
         load_config "$CONFIG_FILE"
 
-        respond "ACK"
-        continue
+        if [[ $ret -ne 0 ]]; then
+            respond "ERROR"
+            break
+        else
+            respond "ACK"
+            continue
+        fi
         ;;
     COMMITEND)
         process_locale_dirs
