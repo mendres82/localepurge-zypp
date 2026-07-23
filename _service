@@ -5,12 +5,30 @@
     <param name="revision">v0.3.6</param>
     <param name="versionformat">@PARENT_TAG@</param>
   </service>
+
+  <service name="download_url">
+    <param name="host">raw.githubusercontent.com</param>
+    <param name="protocol">https</param>
+    <param name="path">/mendres82/localepurge-zypp/refs/tags/v0.3.6/localepurge-zypp.spec</param>
+    <param name="filename">localepurge-zypp.spec</param>
+  </service>
+
+  <service name="download_url">
+    <param name="host">raw.githubusercontent.com</param>
+    <param name="protocol">https</param>
+    <param name="path">/mendres82/localepurge-zypp/refs/tags/v0.3.6/localepurge-zypp.changes</param>
+    <param name="filename">localepurge-zypp.changes</param>
+  </service>
+
   <service name="tar" mode="buildtime"/>
+
   <service name="recompress" mode="buildtime">
     <param name="compression">xz</param>
     <param name="file">*.tar</param>
   </service>
+
   <service name="set_version" mode="buildtime"/>
+
   <service name="set_version">
     <param name="version">@PARENT_TAG@</param>
   </service>
