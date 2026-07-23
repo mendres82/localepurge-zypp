@@ -16,7 +16,7 @@
 #
 
 Name:           localepurge-zypp
-Version:        0.3.6
+Version:        0
 Release:        0
 Requires:       zypper >= 1.13.10
 Url:            https://github.com/mendres82/localepurge-zypp
